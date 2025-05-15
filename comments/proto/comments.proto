@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package comments;
+
+option go_package = "./proto;comments";
+
+service Comments {
+	rpc Create(CreateRequest) returns (CreateResponse) {};
+}
+
+message CreateRequest {}
+
+message CreateResponse {}
