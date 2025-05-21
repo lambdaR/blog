@@ -23,6 +23,12 @@ run-comments:
 run-web:
 	cd web && go run main.go
 
+run-all:
+	cd users && go run main.go & \
+	cd posts && go run main.go & \
+	cd comments && go run main.go & \
+	cd web && go run main.go & \
+	wait
 
 
 build-all: build-users build-posts build-comments build-web
