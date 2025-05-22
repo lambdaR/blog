@@ -6,12 +6,24 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"golang.org/x/crypto/bcrypt"
 	"go-micro.dev/v5"
 
 	commentProto "github.com/micro/blog/comments/proto"
 	postProto "github.com/micro/blog/posts/proto"
 	userProto "github.com/micro/blog/users/proto"
 )
+
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func checkPasswordHash(password, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
 
 func main() {
 
@@ -27,6 +39,21 @@ func main() {
 	log.Println("Starting REST API server on port 42096...")
 
 	router := gin.Default()
+
+	sessionStore := cookie.NewStore([]byte("secret"))
+	router.Use(sessions.Sessions("session", sessionStore))
+
+	// Middleware to set user info in context
+	router.Use(func(c *gin.Context) {
+		sess := sessions.Default(c)
+		userID := sess.Get("user_id")
+		userName := sess.Get("user_name")
+		if userID != nil && userName != nil {
+			c.Set("user_id", userID)
+			c.Set("user_name", userName)
+		}
+		c.Next()
+	})
 
 	// === Posts endpoints ===
 	router.GET("/posts", func(c *gin.Context) {
@@ -58,15 +85,21 @@ func main() {
 			Title   string `json:"title"`
 			Content string `json:"content"`
 		}
-
 		if err := c.BindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
+		userID, _ := c.Get("user_id")
+		userName, _ := c.Get("user_name")
+		if userID == nil || userName == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
+			return
+		}
 		resp, err := postClient.Create(context.Background(), &postProto.CreateRequest{
-			Title:   req.Title,
-			Content: req.Content,
+			Title:      req.Title,
+			Content:    req.Content,
+			AuthorId:   userID.(string),
+			AuthorName: userName.(string),
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -90,20 +123,24 @@ func main() {
 
 	router.POST("/comments", func(c *gin.Context) {
 		var req struct {
-			Content  string `json:"content"`
-			AuthorId string `json:"author_id"`
-			PostId   string `json:"post_id"`
+			Content string `json:"content"`
+			PostId  string `json:"post_id"`
 		}
-
 		if err := c.BindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
+		userID, _ := c.Get("user_id")
+		userName, _ := c.Get("user_name")
+		if userID == nil || userName == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
+			return
+		}
 		resp, err := commentClient.Create(context.Background(), &commentProto.CreateRequest{
-			Content:  req.Content,
-			AuthorId: req.AuthorId,
-			PostId:   req.PostId,
+			Content:    req.Content,
+			AuthorId:   userID.(string),
+			AuthorName: userName.(string),
+			PostId:     req.PostId,
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -157,6 +194,123 @@ func main() {
 			return
 		}
 		c.JSON(http.StatusCreated, resp)
+	})
+
+	// Signup endpoint
+	router.POST("/signup", func(c *gin.Context) {
+		var req struct {
+			Name     string `json:"name"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := c.BindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Name == "" || req.Email == "" || req.Password == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all fields required"})
+			return
+		}
+		pwHash, err := hashPassword(req.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+			return
+		}
+		resp, err := userClient.Create(context.Background(), &userProto.CreateRequest{
+			Name:     req.Name,
+			Email:    req.Email,
+			Password: pwHash,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		sess := sessions.Default(c)
+		sess.Set("user_id", resp.User.Id)
+		sess.Set("user_name", resp.User.Name)
+		sess.Save()
+		c.JSON(http.StatusCreated, gin.H{"user": resp.User})
+	})
+
+	// Login endpoint
+	router.POST("/login", func(c *gin.Context) {
+		var req struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := c.BindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		// Find user by email
+		usersResp, err := userClient.List(context.Background(), &userProto.ListRequest{Page: 1, Limit: 1000})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		var found *userProto.User
+		for _, u := range usersResp.Users {
+			if u.Email == req.Email {
+				found = u
+				break
+			}
+		}
+		if found == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
+		// Check password
+		rec, err := userClient.Read(context.Background(), &userProto.ReadRequest{Id: found.Id})
+		if err != nil || rec.User == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
+		if !checkPasswordHash(req.Password, rec.User.Password) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
+		sess := sessions.Default(c)
+		sess.Set("user_id", found.Id)
+		sess.Set("user_name", found.Name)
+		sess.Save()
+		c.JSON(http.StatusOK, gin.H{"user": found})
+	})
+
+	// Logout endpoint
+	router.POST("/logout", func(c *gin.Context) {
+		sess := sessions.Default(c)
+		sess.Clear()
+		sess.Save()
+		c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+	})
+
+	// Session info endpoint for frontend
+	router.GET("/users/me", func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		userName, _ := c.Get("user_name")
+		if userID == nil || userName == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"user": nil})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"user": gin.H{"id": userID, "name": userName}})
+	})
+
+	// Serve static index.html at root
+	router.GET("/", func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+
+	// Serve static login and signup pages
+	router.GET("/login.html", func(c *gin.Context) {
+		c.File("./static/login.html")
+	})
+	router.GET("/signup.html", func(c *gin.Context) {
+		c.File("./static/signup.html")
+	})
+
+	// Serve user profile page at /@:username
+	router.GET("/@:username", func(c *gin.Context) {
+		c.File("./static/profile.html")
 	})
 
 	if err := router.Run(":42096"); err != nil {

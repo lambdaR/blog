@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up - Micro Blog</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f6f8fa; margin: 0; }
+    .container { max-width: 400px; margin: 4rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 2rem; }
+    h2 { text-align: center; }
+    form { display: flex; flex-direction: column; gap: 0.5rem; }
+    input { font: inherit; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    button { background: #222; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+    .error { color: #b00; text-align: center; }
+    .link { text-align: center; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Sign Up</h2>
+    <form id="signupForm">
+      <input type="text" id="signupName" placeholder="Name" required />
+      <input type="email" id="signupEmail" placeholder="Email" required />
+      <input type="password" id="signupPassword" placeholder="Password" required />
+      <button type="submit">Sign Up</button>
+      <div class="error" id="signupError"></div>
+    </form>
+    <div class="link">Already have an account? <a href="/login.html">Login</a></div>
+  </div>
+  <script>
+    document.getElementById('signupForm').onsubmit = async e => {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const err = document.getElementById('signupError');
+      err.textContent = '';
+      const res = await fetch('/signup', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});
+      if(res.ok) {
+        window.location = '/';
+      } else {
+        err.textContent = 'Signup failed';
+      }
+    };
+  </script>
+</body>
+</html>

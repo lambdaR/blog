@@ -2,96 +2,97 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	pb "github.com/micro/blog/users/proto"
+	"go-micro.dev/v5/store"
 )
 
-type Handler struct {
-	users map[string]*pb.User
-}
+var userStore = store.DefaultStore
+
+type Handler struct{}
 
 func New() *Handler {
-
-	h := &Handler{
-		users: make(map[string]*pb.User),
-	}
-
-	// Sample users
-	var sampleUsers = []*pb.User{
-		{
-			Id:   "user1",
-			Name: "Morena",
-		},
-		{
-			Id:   "user2",
-			Name: "Simon",
-		},
-		{
-			Id:   "user3",
-			Name: "Carmelo",
-		},
-	}
-
-	// Store sample users
-	for _, user := range sampleUsers {
-		h.users[user.Id] = user
-	}
-
-	return h
+	return &Handler{}
 }
 
 func (h *Handler) Create(ctx context.Context, req *pb.CreateRequest, rsp *pb.CreateResponse) error {
 	id := uuid.New().String()
 
 	user := &pb.User{
-		Id:    id,
-		Name:  req.Name,
-		Email: req.Email,
+		Id:       id,
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password, // store hash
 	}
 
-	h.users[id] = user
-
 	rsp.User = user
+
+	// Save to store
+	b, err := json.Marshal(user)
+	if err == nil {
+		_ = userStore.Write(&store.Record{Key: "user-" + user.Id, Value: b})
+	}
+
 	return nil
 }
 
 func (h *Handler) Read(ctx context.Context, req *pb.ReadRequest, rsp *pb.ReadResponse) error {
-	user, exists := h.users[req.Id]
-	if !exists {
-		return nil
+	rec, err := userStore.Read("user-" + req.Id)
+	if err == nil && len(rec) > 0 {
+		var user pb.User
+		if err := json.Unmarshal(rec[0].Value, &user); err == nil {
+			rsp.User = &user
+			return nil
+		}
 	}
-
-	rsp.User = user
+	// Not found
+	rsp.User = nil
 	return nil
 }
 
 func (h *Handler) Update(ctx context.Context, req *pb.UpdateRequest, rsp *pb.UpdateResponse) error {
-	user, exists := h.users[req.Id]
-	if !exists {
+	rec, err := userStore.Read("user-" + req.Id)
+	if err != nil || len(rec) == 0 {
+		rsp.User = nil
 		return nil
 	}
-
+	var user pb.User
+	if err := json.Unmarshal(rec[0].Value, &user); err != nil {
+		rsp.User = nil
+		return nil
+	}
 	user.Name = req.Name
 	user.Email = req.Email
-
-	rsp.User = user
+	b, err := json.Marshal(&user)
+	if err == nil {
+		_ = userStore.Write(&store.Record{Key: "user-" + user.Id, Value: b})
+	}
+	rsp.User = &user
 	return nil
 }
 
 func (h *Handler) Delete(ctx context.Context, req *pb.DeleteRequest, rsp *pb.DeleteResponse) error {
-	delete(h.users, req.Id)
+	_ = userStore.Delete("user-" + req.Id)
 	return nil
 }
 
 func (h *Handler) List(ctx context.Context, req *pb.ListRequest, rsp *pb.ListResponse) error {
-	var users []*pb.User
-	for _, user := range h.users {
-		users = append(users, user)
+	rec, err := userStore.Read("user-", store.ReadPrefix())
+	if err == nil && len(rec) > 0 {
+		var loadedUsers []*pb.User
+		for _, r := range rec {
+			var u pb.User
+			if err := json.Unmarshal(r.Value, &u); err == nil {
+				loadedUsers = append(loadedUsers, &u)
+			}
+		}
+		rsp.Users = loadedUsers
+		rsp.Total = int32(len(loadedUsers))
+		return nil
 	}
-
-	rsp.Users = users
-	rsp.Total = int32(len(users))
-
+	rsp.Users = nil
+	rsp.Total = 0
 	return nil
 }

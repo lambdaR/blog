@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile - Micro Blog</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f6f8fa; margin: 0; }
+    .container { max-width: 600px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 2rem; }
+    h1 { text-align: center; color: #222; margin-bottom: 1rem; }
+    .section { margin-bottom: 2rem; }
+    .post, .comment { background: #f6f8fa; border-radius: 6px; margin-bottom: 1rem; padding: 1rem; }
+    .post-title { font-weight: bold; margin-bottom: 0.5rem; }
+    .post-content { margin-bottom: 0.5rem; }
+    .comment-content { margin-bottom: 0.2rem; }
+    .meta { color: #888; font-size: 0.95em; }
+    a { color: #222; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/">&larr; Back to Feed</a>
+    <h1 id="profile-title">User Profile</h1>
+    <div class="section">
+      <h2>Posts</h2>
+      <div id="user-posts"></div>
+    </div>
+    <div class="section">
+      <h2>Comments</h2>
+      <div id="user-comments"></div>
+    </div>
+  </div>
+  <script>
+    function timeAgo(ts) {
+      if (!ts) return '';
+      const now = Date.now() / 1000;
+      const diff = Math.floor(now - ts);
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+      if (diff < 2592000) return `${Math.floor(diff/86400)}d ago`;
+      const d = new Date(ts * 1000);
+      return d.toLocaleDateString();
+    }
+    function getUsernameFromPath() {
+      const match = window.location.pathname.match(/^\/@(\w+)/);
+      return match ? match[1] : null;
+    }
+    async function fetchPosts() {
+      const res = await fetch('/posts');
+      const data = await res.json();
+      return data.posts || [];
+    }
+    async function fetchComments() {
+      const res = await fetch('/comments');
+      const data = await res.json();
+      return data.comments || [];
+    }
+    async function renderProfile() {
+      const username = getUsernameFromPath();
+      if (!username) return;
+      document.getElementById('profile-title').textContent = `@${username}`;
+      // Posts
+      const posts = (await fetchPosts()).filter(p => (p.author_name||'').toLowerCase() === username.toLowerCase());
+      const postsDiv = document.getElementById('user-posts');
+      if (posts.length === 0) postsDiv.innerHTML = '<em>No posts yet.</em>';
+      else postsDiv.innerHTML = posts.map(post => `
+        <div class="post">
+          <div class="post-title">${post.title}</div>
+          <div class="post-content">${post.content}</div>
+          <div class="meta">${timeAgo(post.created_at)}</div>
+        </div>
+      `).join('');
+      // Comments
+      const comments = (await fetchComments()).filter(c => (c.author_name||'').toLowerCase() === username.toLowerCase());
+      const commentsDiv = document.getElementById('user-comments');
+      if (comments.length === 0) commentsDiv.innerHTML = '<em>No comments yet.</em>';
+      else commentsDiv.innerHTML = comments.map(c => `
+        <div class="comment">
+          <div class="comment-content">${c.content}</div>
+          <div class="meta">on post <a href="/#${c.post_id}">${c.post_id}</a> • ${timeAgo(c.created_at)}</div>
+        </div>
+      `).join('');
+    }
+    renderProfile();
+  </script>
+</body>
+</html>
