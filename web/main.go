@@ -295,6 +295,9 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"user": gin.H{"id": userID, "name": userName}})
 	})
 
+	// Serve all static files (css, js, etc.) from /static
+	router.Static("/static", "./static")
+
 	// Serve static index.html at root
 	router.GET("/", func(c *gin.Context) {
 		c.File("./static/index.html")
