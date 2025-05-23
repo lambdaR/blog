@@ -32,6 +32,20 @@ func (h *Handler) Create(ctx context.Context, req *pb.CreateRequest, rsp *pb.Cre
 		CreatedAt:  now,
 	}
 
+	// Extract first URL and fetch link preview
+	url := extractFirstURL(req.Content)
+	if url != "" {
+		title, desc, image, err := fetchLinkPreview(url)
+		if err == nil {
+			comment.LinkPreview = &pb.LinkPreview{
+				Url:         url,
+				Title:       title,
+				Description: desc,
+				Image:       image,
+			}
+		}
+	}
+
 	rsp.Comment = comment
 
 	// Save to store

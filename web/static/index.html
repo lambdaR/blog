@@ -18,6 +18,12 @@
     .comment { font-size: 0.95em; margin-bottom: 0.5rem; color: #444; }
     .comment-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     .comment-form input { flex: 1; }
+    .link-preview { border: 1px solid #ddd; border-radius: 6px; padding: 0.5em; margin-bottom: 0.5em; background: #fff; display: flex; gap: 1em; align-items: center; }
+    .link-preview img { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; }
+    .link-preview div { flex: 1; min-width: 0; }
+    .link-preview div div { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .link-preview div div + div { color: #555; font-size: 0.95em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .link-preview a { color: #1a0dab; font-size: 0.95em; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -74,6 +80,11 @@
       const data = await res.json();
       return data.comments || [];
     }
+    // Helper to linkify URLs in text
+    function linkify(text) {
+      if (!text) return '';
+      return text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    }
     async function renderFeed() {
       const feed = document.getElementById('feed');
       feed.innerHTML = '';
@@ -83,9 +94,23 @@
       for (const post of posts) {
         const postDiv = document.createElement('div');
         postDiv.className = 'post';
+        let linkPreviewHtml = '';
+        if (post.link_preview && post.link_preview.url) {
+          linkPreviewHtml = `
+            <div class="link-preview" style="border:1px solid #ddd;border-radius:6px;padding:0.5em;margin-bottom:0.5em;background:#fff;display:flex;gap:1em;align-items:center;">
+              ${post.link_preview.image ? `<img src="${post.link_preview.image}" alt="preview image" style="max-width:80px;max-height:80px;border-radius:4px;object-fit:cover;">` : ''}
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${post.link_preview.title || post.link_preview.url}</div>
+                <div style="color:#555;font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${post.link_preview.description || ''}</div>
+                <a href="${post.link_preview.url}" target="_blank" style="color:#1a0dab;font-size:0.95em;word-break:break-all;">${post.link_preview.url}</a>
+              </div>
+            </div>
+          `;
+        }
         postDiv.innerHTML = `
           <div class="post-title">${post.title} <span style='font-size:0.9em;color:#888;'>by <a href="/@${encodeURIComponent(post.author_name ? post.author_name : 'unknown')}">${post.author_name ? post.author_name : 'unknown'}</a>${post.created_at ? ' • ' + timeAgo(post.created_at) : ''}</span></div>
-          <div class="post-content">${post.content}</div>
+          <div class="post-content">${linkify(post.content)}</div>
+          ${linkPreviewHtml}
           <div class="comments" id="comments-${post.id}"></div>
           <form class="comment-form" data-post-id="${post.id}">
             <input type="text" placeholder="Add a comment..." required />
@@ -111,7 +136,7 @@
     async function renderComments(postId) {
       const commentsDiv = document.getElementById(`comments-${postId}`);
       const comments = await fetchComments(postId);
-      commentsDiv.innerHTML = comments.map(c => `<div class="comment">${c.content} <span style='color:#888;'>by <a href="/@${encodeURIComponent(c.author_name ? c.author_name : 'unknown')}">${c.author_name ? c.author_name : 'unknown'}</a>${c.created_at ? ' • ' + timeAgo(c.created_at) : ''}</span></div>`).join('');
+      commentsDiv.innerHTML = comments.map(c => `<div class="comment">${linkify(c.content)} <span style='color:#888;'>by <a href="/@${encodeURIComponent(c.author_name ? c.author_name : 'unknown')}">${c.author_name ? c.author_name : 'unknown'}</a>${c.created_at ? ' • ' + timeAgo(c.created_at) : ''}</span></div>`).join('');
     }
     document.getElementById('postForm').addEventListener('submit', async (e) => {
       e.preventDefault();
