@@ -87,23 +87,6 @@ Before you begin, make sure you have the following installed:
 
    This will generate the necessary Go code from the Protocol Buffer definitions.
 
-## IDE Setup
-
-For the best development experience, we recommend using an IDE with good Go support:
-
-### Visual Studio Code
-
-1. Install Visual Studio Code
-2. Install the Go extension
-3. Open the project folder
-4. The Go extension will prompt you to install various Go tools - accept these installations
-
-### GoLand
-
-1. Install GoLand
-2. Open the project folder
-3. GoLand should automatically detect the Go module and set up the project
-
 ## Environment Configuration
 
 The Micro Blog project uses default configurations for development. If you need to customize the environment:

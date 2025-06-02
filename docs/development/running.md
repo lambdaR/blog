@@ -117,18 +117,18 @@ To verify that services are running correctly:
 
 If you encounter issues:
 
-1. **Service not found errors**:
-   - Make sure all services are running
-   - Check that the service names match (users, posts, comments)
+### Service not found errors
+- Make sure all services are running
+- Check that the service names match (users, posts, comments)
 
-2. **Connection refused errors**:
-   - Check that the services are running on the expected ports
-   - Make sure no firewall is blocking the connections
+### Connection refused errors
+- Check that the services are running on the expected ports
+- Make sure no firewall is blocking the connections
 
-3. **Web interface not loading**:
-   - Check that the web service is running
-   - Verify that static files are in the correct location (`web/static/`)
+### Web interface not loading
+- Check that the web service is running
+- Verify that static files are in the correct location (`web/static/`)
 
-4. **Data persistence issues**:
-   - Remember that the default store is in-memory
-   - Data will be lost when services are restarted
+### Data persistence issues
+- Remember that the default store is in-memory
+- Data will be lost when services are restarted

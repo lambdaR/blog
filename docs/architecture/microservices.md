@@ -14,6 +14,7 @@ The Users Service is responsible for user management:
 - User data storage
 
 **Key Components:**
+
 - `users/main.go`: Service entry point
 - `users/handler/users.go`: Request handlers
 - `users/proto/users.proto`: Service definition
@@ -38,6 +39,7 @@ The Posts Service manages blog posts and their tags:
 - Tag management
 
 **Key Components:**
+
 - `posts/main.go`: Service entry point
 - `posts/handler/posts.go`: Request handlers
 - `posts/proto/posts.proto`: Service definition
@@ -64,6 +66,7 @@ The Comments Service handles comments on blog posts:
 - Comment listing by post
 
 **Key Components:**
+
 - `comments/main.go`: Service entry point
 - `comments/handler/comments.go`: Request handlers
 - `comments/proto/comments.proto`: Service definition
@@ -90,6 +93,7 @@ The Web Service acts as an API gateway and serves the static web UI:
 - Session management
 
 **Key Components:**
+
 - `web/main.go`: Service entry point and API implementation
 - `web/static/`: Static web UI files
 

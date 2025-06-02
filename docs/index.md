@@ -17,6 +17,20 @@ This project demonstrates how to build a complete blog application using microse
 - REST API
 - Simple web interface
 
+## Go-Micro Framework
+
+Go-Micro is a pluggable microservices framework for Go that provides the core requirements for distributed systems development. This project uses go-micro v5, which includes several key components:
+
+- **Service**: The main building block that encapsulates a microservice
+- **Registry**: Service discovery mechanism for registering and finding services
+- **Client**: RPC client for making requests to services
+- **Server**: RPC server for handling requests
+- **Broker**: Asynchronous messaging between services
+- **Transport**: Synchronous communication mechanism
+- **Store**: Simple key-value storage interface
+
+Go-Micro abstracts away the details of distributed systems, allowing developers to focus on business logic rather than boilerplate code for service discovery, load balancing, and communication.
+
 ## Microservices Architecture
 
 The project is built using a microservices architecture, with each service responsible for a specific domain:
