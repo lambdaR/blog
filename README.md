@@ -83,6 +83,32 @@ make run-web
 
 The REST API and web interface will be available at http://localhost:42096
 
+## Documentation
+
+This project includes comprehensive documentation built with MkDocs. To view the documentation:
+
+1. Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the MkDocs development server:
+
+```bash
+mkdocs serve
+```
+
+3. Open http://localhost:8000 in your browser to view the documentation.
+
+To build the documentation site:
+
+```bash
+mkdocs build
+```
+
+The built documentation will be in the `site/` directory.
+
 ## API Endpoints
 
 ### Posts
