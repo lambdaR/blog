@@ -23,6 +23,7 @@ site/
 # Python virtual environment
 venv/
 .venv/
+mkdocs-example/
 
 # IDE files
 .idea/
